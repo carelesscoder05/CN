@@ -1,0 +1,191 @@
+Of course. Here is an implementation of a simple DNS lookup client in C++ using the legacy `gethostbyname()` and `gethostbyaddr()` functions from the socket programming library.
+
+These functions query the system's configured DNS resolver to find information about hosts.
+
+> **Note:** The `gethostbyname()` and `gethostbyaddr()` functions are considered obsolete. Modern applications should use the more advanced and flexible `getaddrinfo()` and `getnameinfo()` functions, as they are thread-safe and provide better support for IPv6. However, for demonstrating the basic protocol as requested, the older functions are straightforward.
+
+-----
+
+### 1\. Get Host by Name (`gethostbyname`)
+
+This program takes a hostname (e.g., `www.google.com`) as a command-line argument and retrieves its corresponding IP address(es).
+
+The core of this operation is the `gethostbyname()` function. It queries DNS servers to resolve a name to an IP. It returns a pointer to a `hostent` structure, which contains the results of the search.
+
+#### Key Structure: `hostent`
+
+The `hostent` structure is defined in `<netdb.h>` and looks like this:
+
+```cpp
+struct hostent {
+    char  *h_name;        // Official name of the host.
+    char **h_aliases;     // A NULL-terminated array of alternate names.
+    int    h_addrtype;    // The address type (e.g., AF_INET for IPv4).
+    int    h_length;      // The length, in bytes, of the address.
+    char **h_addr_list;   // A NULL-terminated array of network addresses for the host.
+                          // Addresses are in network byte order.
+};
+```
+
+#### C++ Implementation (`get_host_by_name.cpp`)
+
+```cpp
+#include <iostream>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <cstring>
+
+using namespace std;
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        cerr << "Usage: " << argv[0] << " <hostname>" << endl;
+        return 1;
+    }
+
+    const char* hostname = argv[1];
+    struct hostent *host_entry;
+
+    // gethostbyname() returns a pointer to a hostent struct
+    host_entry = gethostbyname(hostname);
+
+    if (host_entry == nullptr) {
+        herror("gethostbyname"); // hstrerror() provides more details on the error
+        return 2;
+    }
+
+    cout << "Host Information for: " << hostname << endl;
+    cout << "----------------------------------" << endl;
+
+    // Print the official hostname
+    cout << "Official Host Name: " << host_entry->h_name << endl;
+
+    // Print aliases (alternative names)
+    cout << "Aliases: " << endl;
+    char **alias;
+    for (alias = host_entry->h_aliases; *alias != nullptr; alias++) {
+        cout << "  - " << *alias << endl;
+    }
+
+    // Print the IP addresses
+    cout << "IP Addresses: " << endl;
+    struct in_addr **addr_list = (struct in_addr **)host_entry->h_addr_list;
+    for (int i = 0; addr_list[i] != nullptr; i++) {
+        // inet_ntoa converts network address to a dotted-decimal string
+        cout << "  - " << inet_ntoa(*addr_list[i]) << endl;
+    }
+
+    return 0;
+}
+```
+
+-----
+
+### 2\. Get Host by Address (`gethostbyaddr`)
+
+This program performs a **reverse DNS lookup**. It takes an IPv4 address (e.g., `8.8.8.8`) as a command-line argument and retrieves its corresponding hostname.
+
+The `gethostbyaddr()` function queries for a PTR (pointer) record in the DNS to map an IP back to a name.
+
+#### C++ Implementation (`get_host_by_addr.cpp`)
+
+```cpp
+#include <iostream>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <cstring>
+
+using namespace std;
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        cerr << "Usage: " << argv[0] << " <ip_address>" << endl;
+        return 1;
+    }
+
+    const char* ip_str = argv[1];
+    struct in_addr addr;
+    struct hostent *host_entry;
+
+    // Convert the IP address string to a network address structure
+    if (inet_pton(AF_INET, ip_str, &addr) <= 0) {
+        cerr << "Invalid IP address format" << endl;
+        return 2;
+    }
+
+    // gethostbyaddr() takes the network address, its length, and address family
+    host_entry = gethostbyaddr(&addr, sizeof(addr), AF_INET);
+
+    if (host_entry == nullptr) {
+        herror("gethostbyaddr");
+        return 3;
+    }
+
+    cout << "Host Information for IP: " << ip_str << endl;
+    cout << "----------------------------------" << endl;
+
+    // Print the official hostname
+    cout << "Official Host Name: " << host_entry->h_name << endl;
+
+    // Print aliases (alternative names)
+    cout << "Aliases: " << endl;
+    char **alias;
+    for (alias = host_entry->h_aliases; *alias != nullptr; alias++) {
+        cout << "  - " << *alias << endl;
+    }
+
+    return 0;
+}
+```
+
+-----
+
+### How to Compile and Run
+
+You can compile these programs using a C++ compiler like `g++`.
+
+**1. Compile the code:**
+
+```bash
+# Compile the 'get host by name' program
+g++ get_host_by_name.cpp -o get_host_by_name
+
+# Compile the 'get host by address' program
+g++ get_host_by_addr.cpp -o get_host_by_addr
+```
+
+**2. Run the executables:**
+
+#### Example 1: Get Host by Name
+
+```bash
+./get_host_by_name www.google.com
+```
+
+**Sample Output:**
+
+```
+Host Information for: www.google.com
+----------------------------------
+Official Host Name: www.google.com
+Aliases: 
+IP Addresses: 
+  - 142.250.196.100
+```
+
+#### Example 2: Get Host by Address
+
+```bash
+./get_host_by_addr 8.8.8.8
+```
+
+**Sample Output:**
+
+```
+Host Information for IP: 8.8.8.8
+----------------------------------
+Official Host Name: dns.google
+Aliases: 
+```
