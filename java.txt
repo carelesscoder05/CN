@@ -1,0 +1,287 @@
+Of course. Here is a complete design for a simple Online Railway Reservation System with a Java Swing frontend and a MySQL backend, covering the database schema and the full application code for all requested modules.
+
+-----
+
+### 1\. Database Design (MySQL)
+
+First, you need to create a database and a table to store the reservation details.
+
+1.  **Create a Database:** Open your MySQL client (like MySQL Workbench or the command-line client) and run this command:
+
+    ```sql
+    CREATE DATABASE railway_system;
+    ```
+
+2.  **Use the Database:**
+
+    ```sql
+    USE railway_system;
+    ```
+
+3.  **Create the `reservations` Table:** This table will hold all the passenger booking information. The `seatno` is the **primary key**, which uniquely identifies each reservation.
+
+    ```sql
+    CREATE TABLE reservations (
+        seatno INT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        source VARCHAR(100) NOT NULL,
+        destination VARCHAR(100) NOT NULL
+    );
+    ```
+
+Your database is now set up and ready to be connected to the Java application.
+
+-----
+
+### 2\. Java Project Setup
+
+Before writing the Java code, make sure you have the following:
+
+1.  **JDK (Java Development Kit):** Ensure you have Java installed on your system.
+2.  **IDE (optional but recommended):** Use an IDE like Eclipse, IntelliJ IDEA, or VS Code for easier project management.
+3.  **MySQL JDBC Driver:** This is a crucial library that allows your Java application to communicate with the MySQL database.
+      * Download the **MySQL Connector/J** JAR file from the official MySQL website.
+      * Add this JAR file to your Java project's build path or classpath. In most IDEs, you can do this by right-clicking the project -\> Properties -\> Java Build Path -\> Libraries -\> Add External JARs... and selecting the downloaded file.
+
+-----
+
+### 3\. Java Swing Application Code
+
+Here is the complete Java code for the application. This single file creates the user interface and handles all the database operations (Insert, Find, Update, Delete).
+
+Remember to **change the database URL, username, and password** in the code to match your MySQL setup.
+
+```java
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+
+// Per your request, this C++ preference does not apply here as you asked for a Java solution.
+// using namespace std; // This is a C++ directive and not used in Java.
+
+public class RailwayReservationSystem extends JFrame implements ActionListener {
+
+    // GUI Components
+    private JLabel lblSeatNo, lblName, lblSource, lblDestination, lblStatus;
+    private JTextField txtSeatNo, txtName, txtSource, txtDestination;
+    private JButton btnInsert, btnFind, btnUpdate, btnDelete, btnClear;
+    private JTextArea txtResult;
+
+    // Database Connection
+    private Connection con;
+    private PreparedStatement pst;
+
+    public RailwayReservationSystem() {
+        // Frame Setup
+        setTitle("Railway Reservation System");
+        setSize(600, 450);
+        setLayout(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        getContentPane().setBackground(new Color(240, 240, 240));
+
+        // Initialize Components
+        lblSeatNo = new JLabel("Seat No:");
+        lblSeatNo.setBounds(30, 30, 100, 25);
+        add(lblSeatNo);
+
+        txtSeatNo = new JTextField();
+        txtSeatNo.setBounds(140, 30, 150, 25);
+        add(txtSeatNo);
+
+        lblName = new JLabel("Passenger Name:");
+        lblName.setBounds(30, 70, 120, 25);
+        add(lblName);
+
+        txtName = new JTextField();
+        txtName.setBounds(140, 70, 150, 25);
+        add(txtName);
+
+        lblSource = new JLabel("Source:");
+        lblSource.setBounds(30, 110, 100, 25);
+        add(lblSource);
+
+        txtSource = new JTextField();
+        txtSource.setBounds(140, 110, 150, 25);
+        add(txtSource);
+
+        lblDestination = new JLabel("Destination:");
+        lblDestination.setBounds(30, 150, 100, 25);
+        add(lblDestination);
+
+        txtDestination = new JTextField();
+        txtDestination.setBounds(140, 150, 150, 25);
+        add(txtDestination);
+
+        // Buttons
+        btnInsert = new JButton("Insert");
+        btnInsert.setBounds(350, 30, 100, 25);
+        btnInsert.addActionListener(this);
+        add(btnInsert);
+
+        btnFind = new JButton("Find");
+        btnFind.setBounds(460, 30, 100, 25);
+        btnFind.addActionListener(this);
+        add(btnFind);
+
+        btnUpdate = new JButton("Update");
+        btnUpdate.setBounds(350, 70, 100, 25);
+        btnUpdate.addActionListener(this);
+        add(btnUpdate);
+
+        btnDelete = new JButton("Delete");
+        btnDelete.setBounds(460, 70, 100, 25);
+        btnDelete.addActionListener(this);
+        add(btnDelete);
+        
+        btnClear = new JButton("Clear Fields");
+        btnClear.setBounds(350, 110, 210, 25);
+        btnClear.addActionListener(this);
+        add(btnClear);
+
+        // Result Area
+        txtResult = new JTextArea();
+        txtResult.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(txtResult);
+        scrollPane.setBounds(30, 200, 530, 150);
+        add(scrollPane);
+        
+        lblStatus = new JLabel("Status: Not Connected");
+        lblStatus.setBounds(30, 360, 400, 25);
+        add(lblStatus);
+
+        // Connect to Database
+        connectToDatabase();
+
+        setLocationRelativeTo(null); // Center the frame
+        setVisible(true);
+    }
+
+    private void connectToDatabase() {
+        try {
+            // Load the MySQL JDBC driver
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            // Establish connection
+            // !!! IMPORTANT: Change the URL, username, and password below !!!
+            String url = "jdbc:mysql://localhost:3306/railway_system";
+            String user = "root"; // Your MySQL username
+            String password = "password"; // Your MySQL password
+
+            con = DriverManager.getConnection(url, user, password);
+            lblStatus.setText("Status: Connected to Database");
+
+        } catch (ClassNotFoundException | SQLException e) {
+            lblStatus.setText("Status: Connection Failed");
+            JOptionPane.showMessageDialog(this, "Database Connection Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        try {
+            if (e.getSource() == btnInsert) {
+                // INSERT MODULE
+                pst = con.prepareStatement("INSERT INTO reservations(seatno, name, source, destination) VALUES(?, ?, ?, ?)");
+                pst.setInt(1, Integer.parseInt(txtSeatNo.getText()));
+                pst.setString(2, txtName.getText());
+                pst.setString(3, txtSource.getText());
+                pst.setString(4, txtDestination.getText());
+
+                int rowsAffected = pst.executeUpdate();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this, "Reservation Added Successfully!");
+                    clearFields();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to add reservation.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+
+            } else if (e.getSource() == btnFind) {
+                // FIND MODULE
+                pst = con.prepareStatement("SELECT * FROM reservations WHERE name = ?");
+                pst.setString(1, txtName.getText());
+
+                ResultSet rs = pst.executeQuery();
+                StringBuilder results = new StringBuilder();
+                boolean found = false;
+                while (rs.next()) {
+                    found = true;
+                    results.append("Seat No: ").append(rs.getInt("seatno")).append("\n");
+                    results.append("Name: ").append(rs.getString("name")).append("\n");
+                    results.append("Source: ").append(rs.getString("source")).append("\n");
+                    results.append("Destination: ").append(rs.getString("destination")).append("\n\n");
+                }
+                if (!found) {
+                    txtResult.setText("No reservation found for passenger: " + txtName.getText());
+                } else {
+                    txtResult.setText(results.toString());
+                }
+
+            } else if (e.getSource() == btnUpdate) {
+                // UPDATE MODULE
+                pst = con.prepareStatement("UPDATE reservations SET destination = ? WHERE seatno = ?");
+                pst.setString(1, txtDestination.getText());
+                pst.setInt(2, Integer.parseInt(txtSeatNo.getText()));
+
+                int rowsAffected = pst.executeUpdate();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this, "Destination updated successfully!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Seat number not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+
+            } else if (e.getSource() == btnDelete) {
+                // DELETE MODULE
+                pst = con.prepareStatement("DELETE FROM reservations WHERE seatno = ?");
+                pst.setInt(1, Integer.parseInt(txtSeatNo.getText()));
+                
+                int rowsAffected = pst.executeUpdate();
+                if (rowsAffected > 0) {
+                     JOptionPane.showMessageDialog(this, "Reservation deleted/cancelled successfully!");
+                     clearFields();
+                } else {
+                     JOptionPane.showMessageDialog(this, "Seat number not found.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else if (e.getSource() == btnClear) {
+                clearFields();
+            }
+
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "SQL Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            ex.printStackTrace();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid input. Please check seat number.", "Input Error", JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    private void clearFields() {
+        txtSeatNo.setText("");
+        txtName.setText("");
+        txtSource.setText("");
+        txtDestination.setText("");
+        txtResult.setText("");
+    }
+    
+    public static void main(String[] args) {
+        // Run the GUI on the Event Dispatch Thread for thread safety
+        SwingUtilities.invokeLater(() -> new RailwayReservationSystem());
+    }
+}
+```
+
+### How to Run the Application
+
+1.  **Compile:** Save the code as `RailwayReservationSystem.java`. Compile it from your terminal using the command:
+    ```sh
+    javac RailwayReservationSystem.java
+    ```
+2.  **Run:** Execute the compiled code:
+    ```sh
+    java RailwayReservationSystem
+    ```
+3.  **Use the Application:**
+      * **Insert:** Fill in all four fields (Seat No, Name, Source, Destination) and click **Insert**.
+      * **Find:** Enter a **Passenger Name** and click **Find**. The details will appear in the text area below.
+      * **Update:** Enter the **Seat No** of the reservation you want to change and the **new Destination**. Click **Update**.
+      * **Delete:** Enter the **Seat No** you want to cancel and click **Delete**.
